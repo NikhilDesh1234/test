@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.23/css/jquery.dataTables.css">
+    <title>Product Page</title>
+</head>
+<style>
+    .pagesize-container {
+        margin-top: 2%;
+        display: flex;
+        align-items: center;
+    }
+
+    .page-size-info {
+        margin-right: 10px;
+    }
+
+    .pagination-container {
+        display: flex;
+        align-items: center;
+        justify-content: right;
+        margin-top: 20px;
+    }
+
+    .pagination-btn {
+        margin: 0 5px;
+    }
+
+    .pagination-info {
+        margin: 0 10px;
+    }
+
+    .pagination-dropdown {
+        width: 80px;
+    }
+</style>
+
+<body ng-app="myApp" ng-controller="MyController">
+    <div class="container">
+        <h1 class="text-center">Products</h1>
+
+        <a href="Categories.html" class="text-secondary"><i class="fa fa-arrow-right mr-2">
+            </i><u><b>Add Categories</b></u>
+        </a>
+        <button type="button" class="btn btn-primary float-right" data-toggle="modal" data-target="#exampleModal"
+            ng-click="formStatus='Add';newProductName='';selectedCategory=null">
+            <i class="fas fa-plus"></i> Add Product
+        </button>
+
+        <!-- Custom Page size -->
+        <div class="pagesize-container">
+            <span class="page-size-info">Show</span>
+            <select class="form-control form-control-sm page-size-dropdown" ng-model="pageSize"
+                ng-change="loadProducts(pageSize, currentPage)" style="width: auto;">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+            </select>
+            <span class="page-size-info ml-2">entries</span>
+        </div>
+
+        <table id="dataTable" class="display">
+            <thead>
+                <tr>
+                    <th>Product ID</th>
+                    <th>Product Name</th>
+                    <th>Category ID</th>
+                    <th>Category Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="product in products">
+                    <td>{{ product.id }}</td>
+                    <td>{{ product.product_name }}</td>
+                    <td>{{ product.category_id }}</td>
+                    <td>{{ product.category_name }}</td>
+
+                    <td><i class="fa fa-trash text-danger" ng-click="delete(product.id)"></i>
+                        <i class="fa fa-edit text-info ml-3" ng-click="editProduct(product)" data-toggle="modal"
+                            data-target="#exampleModal"></i>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="pagination-container mb-4">
+            <button class="btn btn-sm pagination-btn"
+                ng-click="currentPage = currentPage - 1;loadProducts(pageSize,currentPage)"
+                ng-disabled="currentPage === 1">Previous</button>
+            <span class="pagination-info">{{ currentPage }} / {{ totalPages }}</span>
+            <button class="btn btn-sm pagination-btn"
+                ng-click="currentPage = currentPage + 1;loadProducts(pageSize,currentPage)"
+                ng-disabled="currentPage === totalPages">
+                Next
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">{{formStatus}} Product</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="form-group">
+                            <label for="productName">Product Name:</label>
+                            <input type="text" class="form-control" id="productName" ng-model="newProductName">
+                        </div>
+                         <div class="form-group">
+                            <label for="categorySelect">
+                                {{ categories.length !== 0 ? 'Category:' : 'Add categories first' }}
+                            </label>
+                            <select ng-disabled="categories.length === 0" class="form-control" id="categorySelect"
+                                ng-model="selectedCategory"
+                                ng-options="category as category.category_name for category in categories">
+                                <option value="">Select a Category</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary"
+                        ng-click="formStatus==='Add' ? addProduct() : updateProduct()">
+                        {{formStatus === 'Add' ? 'Add' : 'Save'}} Product
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.23/js/jquery.dataTables.js"></script>
+
+    <script>
+        angular.module('myApp', [])
+            .controller('MyController', ($scope, $http, $timeout) => {
+                $scope.formStatus = '';
+                $scope.updateID = '';
+                $scope.totalPages = 0
+                $scope.currentPage = 1;
+                $scope.pageSize = '10';
+                var dataTableInitialized = false;
+
+                $scope.loadProducts = (pagesize, currentpage) => {
+                    $http.get('/product?tableName=products&pageSize=' + pagesize + '&currentpage=' + currentpage)
+                        .then(res => {
+                            if (res.data.status) {
+                                console.log(res.data.products)
+                                $scope.products = res.data.products;
+                                $scope.totalPages = res.data.totalpages
+                                if (!dataTableInitialized) {
+                                    $timeout(() => {
+                                        $('#dataTable').DataTable({ "paging": false });
+                                        dataTableInitialized = true;
+                                    });
+                                }
+                            } else {
+                                alert("Error while fetching Products")
+                            }
+                        })
+                        .catch(err => {
+                            alert("Error while fetching Products")
+                        })
+                }
+
+                $scope.loadProducts($scope.pageSize, $scope.currentPage)
+
+                $scope.loadCategories = () => {
+                    $http.get('/category?tableName=categories')
+                        .then(res => {
+                            if (res.data.status !== "err") {
+                                $scope.categories = res.data.status;
+                            } else {
+                                alert("Error while fetching Categories")
+                            }
+                        })
+                        .catch(err => {
+                            alert("Error while fetching Categories")
+                        })
+                }
+
+                $scope.loadCategories()
+
+                $scope.delete = product_id => {
+                    $http.delete('/product?product_id=' + product_id)
+                        .then(res => {
+                            if (res.data.status) {
+                                alert("Deleted Successfully ✅")
+                                window.location.reload();
+                            } else {
+                                alert("Error in deleting Product ❌")
+                            }
+                        })
+                        .catch(err => {
+                            alert("Error in deleting Product ❌")
+                        })
+                }
+
+                $scope.addProduct = () => {
+                    if ($scope.newProductName !== '' && $scope.selectedCategory !== null) {
+                        var data = {
+                            "product": $scope.newProductName.trim(),
+                            "category_id": $scope.selectedCategory.id,
+                            "category_name": $scope.selectedCategory.category_name
+                        }
+                        $http.post('/product', data)
+                            .then(res => {
+                                if (res.data.status) {
+                                    alert("Product Added ✅")
+                                    window.location.reload();
+                                } else {
+                                    alert(res.data.msg)
+                                }
+                            })
+                            .catch(err => {
+                                alert("Error while Adding Product")
+                            });
+                    } else {
+                        alert('All inputs should be filled')
+                    }
+                }
+
+                $scope.editProduct = product => {
+                    $timeout(() => {
+                        $scope.formStatus = 'Update';
+                    });
+                    $scope.updateID = product.id
+                    $scope.newProductName = product.product_name;
+                    $scope.selectedCategory = $scope.categories.find(category => category.id === product.category_id);
+                };
+
+                $scope.updateProduct = () => {
+                    if ($scope.newProductName !== '' && $scope.selectedCategory !== null) {
+                        var data = {
+                            "product_id": $scope.updateID,
+                            "product": $scope.newProductName.trim(),
+                            "category_id": $scope.selectedCategory.id,
+                            "category_name": $scope.selectedCategory.category_name
+                        }
+                        $http.put('/product', data)
+                            .then(res => {
+                                if (res.data.status) {
+                                    alert("Updated Successfully ✅")
+                                    window.location.reload();
+                                } else {
+                                    alert(res.data.msg)
+                                }
+                            })
+                            .catch(err => {
+                                alert("Error in Updating Product ❌")
+                            });
+
+                    } else {
+                        alert('All inputs should be filled')
+                    }
+                }
+
+            });
+    </script>
+
+</body>
+
+</html>

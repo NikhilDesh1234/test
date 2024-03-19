@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.23/css/jquery.dataTables.css">
+    <title>Category Page</title>
+</head>
+<style>
+    .dataTables_info {
+        margin-bottom: 4%;
+    }
+</style>
+
+<body ng-app="myApp" ng-controller="MyController">
+    <div class="container">
+        <h1 class="text-center">Categories</h1>
+        <a href="Products.html" class="text-secondary">
+            <i class="fa fa-arrow-right mr-2"></i><u><b>Add Products</b></u>
+        </a>
+
+        <button type="button" class="btn btn-primary float-right mb-4" data-toggle="modal" data-target="#exampleModal"
+            ng-click="formStatus='Add';newCategoryName=''">
+            <i class="fas fa-plus"></i> Add Category
+        </button>
+
+        <table id="dataTable" class="display">
+            <thead>
+                <tr>
+                    <th>Category Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="category in categories">
+                    <td>{{ category.category_name }}</td>
+                    <td><i class="fa fa-trash text-danger" ng-click="delete(category.id)"></i>
+                        <i class="fa fa-edit text-info ml-3" ng-click="editCategory(category)" data-toggle="modal"
+                            data-target="#exampleModal"></i>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">{{formStatus}} Category</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="categoryName">Category Name:</label>
+                        <input type="text" class="form-control" id="categoryName" ng-model="newCategoryName">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+
+                    <button type="button" class="btn btn-primary"
+                        ng-click="formStatus==='Add' ? addCategory() : updateCategory()">
+                        {{formStatus==='Add'?'Add':'Save'}} Category
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.23/js/jquery.dataTables.js"></script>
+
+    <script>
+        angular.module('myApp', [])
+            .controller('MyController', ($scope, $http, $timeout) => {
+                $scope.newCategoryName = '';
+                $scope.formStatus = '';
+                $scope.updateID = '';
+
+                $scope.loadData = () => {
+                    $http.get('/category?tableName=categories')
+                        .then(res => {
+                            if (res.data.status !== "err") {
+                                $scope.categories = res.data.status;
+                                $timeout(() => {
+                                    $('#dataTable').DataTable();
+                                });
+                            } else {
+                                alert("Error while fetching Categories")
+                            }
+                        })
+                        .catch(err => {
+                            alert("Error while fetching Categories")
+                        })
+                }
+
+                $scope.loadData()
+
+                $scope.addCategory = () => {
+                    if ($scope.newCategoryName !== '') {
+                        var data = { "category_name": $scope.newCategoryName.trim() }
+                        $http.post('/category', data)
+                            .then(res => {
+                                if (res.data.status) {
+                                    alert("Category Added ✅")
+                                    window.location.reload();
+                                } else {
+                                    alert(res.data.msg)
+                                }
+                            })
+                            .catch(err => {
+                                alert("Error while Adding category")
+                            });
+                    } else {
+                        alert('All inputs should be filled')
+                    }
+                };
+
+                $scope.delete = category_id => {
+                    $http.delete('/category?category_id=' + category_id)
+                        .then(res => {
+                            if (res.data.status) {
+                                alert("Deleted Successfully ✅")
+                                window.location.reload();
+                            } else {
+                                alert("Error in deleting Category ❌")
+                            }
+                        })
+                        .catch(err => {
+                            alert("Error in deleting Category ❌")
+                        })
+                }
+
+                $scope.editCategory = category => {
+                    $scope.formStatus = 'Update'
+                    $scope.updateID = category.id
+                    $scope.newCategoryName = category.category_name;
+                };
+
+                $scope.updateCategory = () => {
+                    if ($scope.newCategoryName !== '') {
+                        var data = { "id": $scope.updateID, "category": $scope.newCategoryName.trim() }
+                        $http.put('/category', data)
+                            .then(res => {
+                                if (res.data.status) {
+                                    alert("Updated Successfully ✅")
+                                    window.location.reload();
+                                } else {
+                                    alert(res.data.msg)
+                                }
+                            })
+                            .catch(err => {
+                                alert("Error in Updating Category ❌")
+                            });
+                    } else {
+                        alert('All inputs should be filled')
+                    }
+                }
+
+            });
+    </script>
+
+</body>
+
+</html>
